@@ -1,32 +1,28 @@
-export default async function handler(req, res) {
-  // 🔒 CRITICAL: Add CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// Global variable to hold latest data (resets on server restart - perfect for quick viewing)
+let latestData = { message: "Send data from Chrome extension first" };
 
+export default function handler(req, res) {
+  // Allow browser access
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  
   // Handle CORS preflight
   if (req.method === 'OPTIONS') return res.status(200).end();
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Only POST requests allowed' });
+  
+  // ✅ POST: Save data when extension sends it
+  if (req.method === 'POST') {
+    latestData = {
+      receivedAt: new Date().toISOString(),
+      ...req.body
+    };
+    console.log('✅ Data saved:', latestData);
+    return res.status(200).json({ success: true });
   }
-
-  try {
-    const { etfs } = req.body;
-    if (!etfs || !Array.isArray(etfs)) {
-      return res.status(400).json({ error: 'Invalid data format' });
-    }
-
-    // ✅ PROCESS YOUR DATA HERE (save to DB, etc.)
-    console.log(`Received ${etfs.length} ETFs:`, etfs.map(e => e.symbol));
-
-    return res.status(200).json({ 
-      success: true,
-      received: etfs.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Processing error:', error);
-    return res.status(500).json({ error: 'Server processing failed' });
+  
+  // ✅ GET: Show saved data in browser
+  if (req.method === 'GET') {
+    return res.status(200).json(latestData);
   }
+  
+  res.status(405).json({ error: 'Method not allowed' });
 }
